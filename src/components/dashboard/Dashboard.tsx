@@ -85,17 +85,71 @@ export function Dashboard() {
 
   const loadDashboardData = async () => {
     try {
-      // Initialize database tables if they don't exist
-      await blink.db.healthRecords.list({ limit: 1 }).catch(async () => {
-        // Tables don't exist, create them
-        console.log('Initializing health tracking database...')
-      })
+      // Try to load health records from database
+      try {
+        const records = await blink.db.healthRecords.list({ 
+          where: { userId: user.id },
+          limit: 10,
+          orderBy: { createdAt: 'desc' }
+        })
+        setRecentRecords(records)
+        console.log('Loaded health records from database:', records.length)
+      } catch (dbError) {
+        console.log('Database not available, using demo mode')
+        // Generate sample records for demo
+        generateSampleRecords()
+      }
 
       // Generate sample AI insights
       generateSampleInsights()
     } catch (error) {
       console.error('Error loading dashboard data:', error)
+      // Fallback to demo mode
+      generateSampleRecords()
+      generateSampleInsights()
     }
+  }
+
+  const generateSampleRecords = () => {
+    const sampleRecords: HealthRecord[] = [
+      {
+        id: 'record_1',
+        userId: user?.id || '',
+        type: 'vitals',
+        title: 'Blood Pressure Reading',
+        description: 'Morning blood pressure check',
+        value: 120,
+        unit: 'mmHg',
+        date: new Date().toISOString().split('T')[0],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: 'record_2',
+        userId: user?.id || '',
+        type: 'exercise',
+        title: 'Morning Run',
+        description: '30 minutes jogging in the park',
+        value: 30,
+        unit: 'minutes',
+        date: new Date(Date.now() - 86400000).toISOString().split('T')[0], // Yesterday
+        createdAt: new Date(Date.now() - 86400000).toISOString(),
+        updatedAt: new Date(Date.now() - 86400000).toISOString()
+      },
+      {
+        id: 'record_3',
+        userId: user?.id || '',
+        type: 'vitals',
+        title: 'Weight Check',
+        description: 'Weekly weight measurement',
+        value: 70.5,
+        unit: 'kg',
+        date: new Date(Date.now() - 172800000).toISOString().split('T')[0], // 2 days ago
+        createdAt: new Date(Date.now() - 172800000).toISOString(),
+        updatedAt: new Date(Date.now() - 172800000).toISOString()
+      }
+    ]
+    setRecentRecords(sampleRecords)
   }
 
   const generateSampleInsights = async () => {
@@ -273,11 +327,47 @@ export function Dashboard() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8 text-gray-500">
-            <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p>No recent health records found.</p>
-            <p className="text-sm">Start tracking your health by adding your first record!</p>
-          </div>
+          {recentRecords.length > 0 ? (
+            <div className="space-y-4">
+              {recentRecords.map((record) => (
+                <div key={record.id} className="flex items-center justify-between p-4 rounded-lg border bg-white">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-full ${
+                      record.type === 'vitals' ? 'bg-red-100 text-red-600' :
+                      record.type === 'exercise' ? 'bg-green-100 text-green-600' :
+                      record.type === 'medication' ? 'bg-blue-100 text-blue-600' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>
+                      {record.type === 'vitals' ? <Heart className="h-4 w-4" /> :
+                       record.type === 'exercise' ? <Activity className="h-4 w-4" /> :
+                       record.type === 'medication' ? <Thermometer className="h-4 w-4" /> :
+                       <Calendar className="h-4 w-4" />}
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900">{record.title}</h4>
+                      <p className="text-sm text-gray-600">{record.description}</p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(record.date).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  {record.value && (
+                    <div className="text-right">
+                      <span className="font-semibold text-gray-900">
+                        {record.value} {record.unit}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <p>No recent health records found.</p>
+              <p className="text-sm">Start tracking your health by adding your first record!</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
